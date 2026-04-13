@@ -1,10 +1,12 @@
 # 🏦 BC2407 — Money Laundering Detection
 
+Individual assignment for BC2407 Analytics II: Advanced Predictive Techniques, focused on detecting money laundering cases using classification techniques.
+
 ## 📌 Project Overview
 
-Individual assignment in developing a machine learning pipeline to detect money laundering across **1,054,321 banking transactions** spanning October 2022 to August 2023. Given severe class imbalance (only **0.94%** of transactions are laundering), the project prioritises **sensitivity** — correctly identifying true laundering cases — as missing a laundering transaction carries significantly higher risk than a false alarm.
+Individual assignment in developing a machine learning pipeline to detect money laundering across **1,054,321 banking transactions** spanning October 2022 to August 2023. Given severe class imbalance (only **0.94%** of transactions are laundering), the project prioritises **sensitivity** (correctly identifying true laundering cases) as missing a laundering transaction carries significantly higher risk than a false alarm.
 
-The final Random Forest model achieves **86.33% sensitivity** and **96.10% specificity** with an overall accuracy of **96.01%**.
+The final Random Forest model achieved **86.33% sensitivity** and **96.10% specificity** with an overall accuracy of **96.01%**.
 
 ## 📂 Files
 
@@ -16,25 +18,25 @@ The final Random Forest model achieves **86.33% sensitivity** and **96.10% speci
 
 | Variable | Type | Description |
 |---|---|---|
-| `Date` | Date | Transaction date (Oct 2022 – Aug 2023) |
+| `Date` | Date | Transaction date (Oct 2022 - Aug 2023) |
 | `Time` | Time | Transaction timestamp |
 | `Sender_account` | Numeric | Sender account ID |
 | `Receiver_account` | Numeric | Receiver account ID |
-| `Amount` | Numeric | Transaction amount (Mixed currency, largely GBP) — highly skewed (skewness = 140.3) |
-| `Payment_currency` | Categorical | Currency used for payment (13 types) |
-| `Received_currency` | Categorical | Currency received (13 types) |
-| `Sender_bank_location` | Categorical | Sender country (18 countries) |
-| `Receiver_bank_location` | Categorical | Receiver country (18 countries) |
-| `Payment_type` | Categorical | Payment method (7 types) |
-| `Is_laundering` | Binary | Target variable — 0 = Legitimate, 1 = Laundering |
-| `Laundering_type` | Categorical | Type of laundering scheme (**dropped** — data leakage) |
+| `Amount` | Numeric | Transaction amount (Mixed currency, largely GBP) |
+| `Payment_currency` | Categorical | Currency used for payment |
+| `Received_currency` | Categorical | Currency received |
+| `Sender_bank_location` | Categorical | Sender country |
+| `Receiver_bank_location` | Categorical | Receiver country |
+| `Payment_type` | Categorical | Payment method |
+| `Is_laundering` | Binary | Target variable: 0 = Legitimate, 1 = Laundering |
+| `Laundering_type` | Categorical | Type of laundering scheme (**dropped** later due to data leakage) |
 
 ## 🔍 Key EDA Findings
 
 | # | Finding | Insight |
 |---|---|---|
-| 1 | Severe class imbalance — only **0.94%** laundering | Naive model achieves 99% accuracy by predicting all legitimate |
-| 2 | **Cash Deposit (5.4%)** and **Cash Withdrawal (3.9%)** highest laundering rates | 5× the dataset average |
+| 1 | Severe class imbalance, only **0.94%** laundering | High accuracy is not the best metric and to be addressed before modelling |
+| 2 | **Cash Deposit (5.4%)** and **Cash Withdrawal (3.9%)** highest laundering rates | Harder to trace |
 | 3 | Currency mismatch transactions **4.5× more likely** to involve laundering | 2.98% vs 0.67% same-currency rate |
 | 4 | Laundering peaks during **business hours (8am–5pm)** | Mimics legitimate behaviour to avoid detection |
 | 5 | Average daily laundering increased **~38%** from Nov 2022 to Aug 2023 | Growing threat requiring urgent automated detection |
@@ -65,6 +67,7 @@ Full Dataset (1,054,321)
         │
         └──► df.test (316,296) — untouched full testset
 ```
+> ⚠️ A stratified random split was chosen over a time-based split to ensure both the trainset and testset maintained a representative proportion of the rare laundering class (0.94%). With only 9,873 laundering cases across the full dataset, a time-based split risked concentrating laundering cases unevenly across train and test sets, potentially producing unreliable sensitivity estimates. However, this comes at the cost of temporal realism.
 
 ### Feature Engineering
 
@@ -93,12 +96,12 @@ Full Dataset (1,054,321)
 
 | Variable | Reason |
 |---|---|
-| `Sender_account`, `Receiver_account` | ID fields — used only for feature engineering, not model input |
-| `Laundering_type` | **Data leakage** — only exists when laundering is already confirmed |
+| `Sender_account`, `Receiver_account` | ID fields, used only for feature engineering, not model input |
+| `Laundering_type` | **Data leakage**, only exists when laundering is already confirmed |
 | `Date`, `Time` | Replaced by engineered `Hour` and `Month` |
 | `Payment_currency`, `Received_currency` | Replaced by `Currency_mismatch` flag |
 | `Sender_bank_location`, `Receiver_bank_location` | Replaced by `Different_bank_location` flag |
-| `Different_bank_location` | **Extreme multicollinearity** in LR (VIF = 2,647) — dropped from LR models |
+| `Different_bank_location` | **Extreme multicollinearity** in LR (VIF = 2,657), dropped from LR models only |
 
 ### Balancing Strategy
 
@@ -109,7 +112,7 @@ Full Dataset (1,054,321)
 | Sampled trainset after balancing | 100,000 | 59,764 | 59.76% |
 | **Full testset** | **316,296** | **2,962** | **0.94%** |
 
-The trainset was rebalanced using **ROSE** (`method = "both"`, `p = 0.6`), combining oversampling of the minority class and undersampling of the majority class. A proportion of **60% laundering** was chosen to bias the model towards detecting the minority class, reflecting the higher cost of false negatives over false positives.
+The trainset was rebalanced using **ROSE** (`method = "both"`, `p = 0.6`), combining oversampling of the minority class and undersampling of the majority class. A proportion of **60% laundering** was chosen to bias the model slightly towards detecting the minority class, reflecting the higher cost of false negatives over false positives.
 
 ## 🤖 Models
 
@@ -157,7 +160,7 @@ Random Forest significantly outperforms Logistic Regression across all metrics:
 
 ## 🥲 Limitations
 
-1. **Random train-test split instead of time-based split:** A random stratified split was used, meaning the trainset and testset contain transactions from the same time period (Oct 2022 – Aug 2023). In production deployment, a model would always predict future transactions based on past data. A time-based split — training on earlier transactions and testing on later ones — would better reflect real-world conditions and provide a more conservative estimate of model performance.
+1. **Random train-test split instead of time-based split:** A random stratified split was used, meaning the trainset and testset contain transactions from the same time period (Oct 2022 – Aug 2023). In production deployment, a model would always predict future transactions based on past data. A time-based split would better reflect real-world conditions and provide a more conservative estimate of model performance.
 2. **ROSE generates synthetic data:** The ROSE balancing method creates synthetic laundering transactions by interpolating between real ones. These synthetic cases may not represent the full diversity of real laundering behaviour, potentially causing the model to learn patterns that do not generalise to novel laundering schemes.
 3. **LOO features assume account history is available:** The aggregated features (`Sender_txn_count`, `Receiver_txn_count` etc.) require prior transaction history for each account. For new accounts with no history, these features default to zero or median values, which may reduce detection accuracy for first-time laundering attempts
 
