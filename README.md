@@ -1,4 +1,4 @@
-# 🏦 BC2407 — Money Laundering Detection
+# 🏦 BC2407 Money Laundering Detection
 
 Individual assignment for BC2407 Analytics II: Advanced Predictive Techniques, focused on detecting money laundering cases using classification techniques.
 
